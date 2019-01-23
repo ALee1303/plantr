@@ -1,42 +1,36 @@
+const { join } = require('path');
+const volleyball = require('volleyball');
 const express = require('express');
-const { db, Gardener, Plot, Vegetable } = require('./models');
-const server = express();
+const handle = require('express-async-handler'); // adds `catch(next)` to async middleware
+const homePage = require('./views');
+const gardenerPage = require('./views/gardener');
+const { Gardener } = require('./models');
 
-server.use(express.json());
+const app = express();
 
-db.authenticate().
-then(() => {
-  console.log('connected!');
-});
+app.use(volleyball);
+app.use('/styles', express.static(join(__dirname, 'node_modules/bulma/css')));
 
-server.get('/', async (req, res, next) => {
-  try {
+const sendHomePage = handle(async (req, res) => {
     const gardeners = await Gardener.findAll();
-    res.send(gardeners);
-  } catch (err) {
-    console.log(err);
-  }
-});
+    res.send(homePage(gardeners));
+})
 
-server.get('/gardeners', (req, res, next) => {
-  res.redirect('/');
-});
+app.get('/', sendHomePage);
+app.get('/gardeners', sendHomePage);
 
-server.get('/gardeners/:id', async (req, res, next) => {
-  try {
-    let id = req.params.id;
-    const gardener = await Gardener.findById(id, {
-      include: [{ all: true, nested: true }],
-    });
-    res.send(gardener);
-  } catch (err) {
-    console.log(err);
-  }
-});
+app.get(
+    '/gardeners/:id',
+    handle(async (req, res) => {
+        const gardener = await Gardener.findById(req.params.id, {
+            include: [{ all: true, nested: true }],
+        })
+        res.send(gardenerPage(gardener));
+    })
+)
 
-const PORT = 3000;
-server.listen(PORT, () => {
-  console.log(`Server listening on port ${3000}`);
+app.listen(1337, () => {
+    console.log('listening on http://localhost:1337');
 });
 
 
